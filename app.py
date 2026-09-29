@@ -26,12 +26,11 @@ BANK_ID = os.getenv("HINDSIGHT_BANK", "bugtriage-seeded")
 BASE_URL = os.getenv("HINDSIGHT_URL", "http://localhost:8888")
 
 
-@st.cache_resource
 def get_client() -> Hindsight:
     return Hindsight(
-    base_url=BASE_URL,
-    api_key=os.environ["HINDSIGHT_API_KEY"],
-)
+        base_url=BASE_URL,
+        api_key=os.environ["HINDSIGHT_API_KEY"],
+    )
 
 
 @st.cache_data

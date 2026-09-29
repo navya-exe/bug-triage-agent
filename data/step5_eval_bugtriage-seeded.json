@@ -1,0 +1,212 @@
+[
+  {
+    "label": "TICKET-1031",
+    "verdict": {
+      "verdict": "recurrence",
+      "confidence": 0.92,
+      "matched_ticket_ids": [
+        "TICKET-1001",
+        "TICKET-1042",
+        "TICKET-1108"
+      ],
+      "mechanism_reasoning": "All matched tickets describe a missing or delayed debounce guard on click/tap handlers that allows a rapid double\u2011tap to invoke the same request twice, leading to duplicate processing (either a hang, duplicate order, or duplicate auth). The new bug exhibits the same underlying race condition: the Add\u2011to\u2011Cart handler is invoked twice because the debounce flag is not set before the second tap is processed, resulting in two items being added.",
+      "why_symptoms_look_different": "The previous incidents involved the Pay\u202fNow button (causing a hang) or backend order creation (causing duplicate orders), whereas the current incident involves the Add\u2011to\u2011Cart button, which manifests as an immediate duplicate quantity on the UI rather than a hang or backend duplicate order.",
+      "past_fix_assessment": "The fixes applied in the past tickets were workarounds (increasing debounce timeout, adding a loading overlay, and backend idempotency checks). These do not eliminate the root cause of the race condition; they merely mitigate its impact. Therefore, the underlying mechanism likely remains present.",
+      "likely_root_cause": "Missing or improperly timed debounce guard on the tap event handler, causing a race condition that allows a rapid double\u2011tap to be processed as two separate Add\u2011to\u2011Cart actions.",
+      "recommended_action": "Implement a robust, synchronous debounce mechanism for the Add\u2011to\u2011Cart handler (e.g., set a guard flag before any async work starts). Add a UI overlay or disabled state to block further taps until the request completes. Introduce backend idempotency keys for cart\u2011add operations to reject duplicate submissions within a short window. Add automated double\u2011tap tests to verify the fix and monitor for recurrence.",
+      "evidence_gaps": [
+        "No stack trace or console logs showing the event handler execution path.",
+        "No reproduction steps confirming that a double\u2011tap reliably triggers the duplicate addition.",
+        "Unclear whether any debounce logic currently exists for the Add\u2011to\u2011Cart button."
+      ]
+    },
+    "checks": {
+      "no_hallucinated_ids": true,
+      "cited_true_family_member": true,
+      "not_no_match": true
+    },
+    "all_passed": true,
+    "elapsed_s": 5.1
+  },
+  {
+    "label": "TICKET-2201",
+    "verdict": {
+      "verdict": "recurrence",
+      "confidence": 0.85,
+      "matched_ticket_ids": [
+        "TICKET-2067"
+      ],
+      "mechanism_reasoning": "Both the new bug and TICKET-2067 stem from the same underlying mechanism: a write (price update or wishlist item deletion) does not trigger invalidation of the corresponding entry in the shared CDN/edge cache. Consequently, stale data remains cached and is served to other devices or clients, causing the observed wrong-output behavior.",
+      "why_symptoms_look_different": "The data types differ (pricing information vs wishlist items) and the user\u2011facing impact is distinct (price visibility vs item disappearance), but both rely on the same caching layer and suffer from the same invalidation omission.",
+      "past_fix_assessment": "The fix applied in TICKET-2067 was a workaround (TTL reduction) that does not address the root cause of missing invalidation. Therefore, the underlying cache\u2011invalidation flaw likely still exists for the wishlist service.",
+      "likely_root_cause": "Missing or incorrect cache invalidation on wishlist\u2011item delete operations within the shared CDN/edge cache, leading to stale data being served across devices.",
+      "recommended_action": "Implement proper cache purge/invalidation for wishlist deletions (e.g., purge relevant cache keys on successful delete), review and align TTL settings with write\u2011through semantics, add automated tests to verify cache invalidation, and monitor cache hit/miss metrics after deployment.",
+      "evidence_gaps": [
+        "No logs or traces confirming that the wishlist data is cached in the CDN layer.",
+        "No details on the delete operation code path or cache key naming conventions.",
+        "Absence of metrics showing cache hit rates before and after the delete."
+      ]
+    },
+    "checks": {
+      "no_hallucinated_ids": true,
+      "cited_true_family_member": true,
+      "not_no_match": true
+    },
+    "all_passed": true,
+    "elapsed_s": 3.7
+  },
+  {
+    "label": "TICKET-3142",
+    "verdict": {
+      "verdict": "recurrence",
+      "confidence": 0.86,
+      "matched_ticket_ids": [
+        "TICKET-3011",
+        "TICKET-3054",
+        "TICKET-3098"
+      ],
+      "mechanism_reasoning": "All matched tickets share a root\u2011cause mechanism where date/time values are derived from the server's local timezone (or UTC) without converting to the end\u2011user's timezone, causing off\u2011by\u2011one\u2011day errors for customers in timezones far ahead of UTC. The new calendar\u2011integration bug exhibits the same pattern: a meeting scheduled at 9\u202fam in a far\u2011ahead timezone is stored or transmitted using the server's local time, then interpreted by the client as 9\u202fam on the previous UTC day, resulting in a one\u2011day shift. This is the same underlying mechanism of incorrect timezone offset calculation.",
+      "why_symptoms_look_different": "The symptom manifests in different subsystems (analytics reports, billing invoices, scheduler jobs, and calendar sync) and thus appears as a month\u2011boundary bleed, an invoice date shift, an early job run, or a calendar event appearing a day early. However, each case stems from the same faulty handling of timezone conversion rather than a domain\u2011specific logic error.",
+      "past_fix_assessment": "The prior fixes for TICKET-3011 and TICKET-3054 were workarounds (hard\u2011coded offsets or query adjustments) that did not address the fundamental timezone conversion logic. Therefore, the root cause likely remains present in the codebase and could affect the calendar\u2011integration component as well.",
+      "likely_root_cause": "Date conversion uses the server's local timezone (or a fixed UTC offset) instead of the user's stored timezone, leading to an off\u2011by\u2011one\u2011day error for users in timezones far ahead of UTC.",
+      "recommended_action": "Audit the calendar\u2011integration code path that creates or syncs event timestamps. Replace any usage of server\u2011local Date objects with UTC\u2011based timestamps and explicitly convert to the user's timezone using a reliable date\u2011time library. Add unit and integration tests covering extreme timezone offsets and DST transitions. Deploy a real fix rather than a temporary offset hack.",
+      "evidence_gaps": [
+        "No stack trace or code snippet showing where the timestamp is generated or transformed.",
+        "Unclear whether recent deployments modified timezone handling in the calendar\u2011integration service.",
+        "Missing logs that confirm the exact offset applied during the conversion."
+      ]
+    },
+    "checks": {
+      "no_hallucinated_ids": true,
+      "cited_true_family_member": true,
+      "not_no_match": true
+    },
+    "all_passed": true,
+    "elapsed_s": 53.6
+  },
+  {
+    "label": "TICKET-4132",
+    "verdict": {
+      "verdict": "related_variant",
+      "confidence": 0.73,
+      "matched_ticket_ids": [
+        "TICKET-4009",
+        "TICKET-4077"
+      ],
+      "mechanism_reasoning": "Both the new incident and the matched past tickets involve a resource-leak style failure: a gradual, unbounded accumulation of a resource (memory in the new case, database connections in the past tickets) that eventually exhausts the available pool and forces a restart or causes a crash. The specific resource differs, but the underlying failure mechanism \u2013 a leak that builds up over time under sustained load \u2013 is the same family.",
+      "why_symptoms_look_different": "The new bug manifests as an OOM kill because the leaked resource is memory, leading to pod termination. The past tickets manifested as performance degradation and intermittent 502 errors because the leaked resource was database connections, causing request failures rather than outright OOM.",
+      "past_fix_assessment": "The past tickets were mitigated with workarounds (scheduled restarts or runbook instructions) rather than fixing the leak in code, so the root cause (the connection\u2011release bug) remains present. This suggests that a similar workaround (e.g., periodic restarts) would only mask the underlying memory\u2011leak problem in the notifications\u2011worker.",
+      "likely_root_cause": "A memory leak in the notifications\u2011worker process (e.g., unbounded growth of in\u2011memory queues, caches, or goroutine stacks) causing continuous memory consumption until the pod is OOM\u2011killed.",
+      "recommended_action": "1. Capture a heap profile or memory dump of the notifications\u2011worker during its steady\u2011state run to identify objects that keep growing. 2. Review recent code changes for unbounded data structures, background job loops, or caching logic that may retain references. 3. Add alerts on memory usage growth rate and consider a temporary periodic restart as a mitigation until the leak is fixed. 4. Once the leak source is identified, implement proper eviction or cleanup and verify with load testing that memory usage stabilizes.",
+      "evidence_gaps": [
+        "No stack traces or logs showing where memory allocation spikes occur.",
+        "No details on the internal architecture of the notifications\u2011worker (e.g., queue implementation, caching layers).",
+        "No information on whether any recent code deployments coincided with the onset of the OOM events."
+      ]
+    },
+    "checks": {
+      "no_hallucinated_ids": true,
+      "cited_true_family_member": true,
+      "not_no_match": true
+    },
+    "all_passed": true,
+    "elapsed_s": 3.6
+  },
+  {
+    "label": "distractor-TICKET-5139",
+    "verdict": {
+      "verdict": "recurrence",
+      "confidence": 0.96,
+      "matched_ticket_ids": [
+        "TICKET-5139"
+      ],
+      "mechanism_reasoning": "Both the new bug and TICKET-5139 involve duplicate 'order shipped' notifications caused by the same underlying mechanism: an external carrier webhook can fire multiple times for the same status change, and the notification handler lacks an idempotency/deduplication check, allowing the same notification to be processed and sent repeatedly.",
+      "why_symptoms_look_different": null,
+      "past_fix_assessment": "TICKET-5139 was resolved with a real fix that added a deduplication check keyed on carrier tracking number and status, effectively addressing the missing idempotency mechanism.",
+      "likely_root_cause": "Missing idempotency/deduplication for the carrier status webhook, leading to race conditions where the same shipping notification is processed multiple times.",
+      "recommended_action": "Confirm that the deduplication logic from TICKET-5139 is present and correctly scoped for all shipping notification pathways. If absent, implement a similar idempotency check (e.g., keyed on tracking number + status) and add monitoring to detect duplicate webhook events.",
+      "evidence_gaps": [
+        "No webhook logs provided to verify duplicate firing frequency in the current incident.",
+        "No details on whether the deduplication check from TICKET-5139 is currently deployed in the affected environment."
+      ]
+    },
+    "checks": {
+      "no_hallucinated_ids": true,
+      "expected_no_match": false
+    },
+    "all_passed": false,
+    "elapsed_s": 3.6
+  },
+  {
+    "label": "distractor-TICKET-5147",
+    "verdict": {
+      "verdict": "recurrence",
+      "confidence": 0.96,
+      "matched_ticket_ids": [
+        "TICKET-5147"
+      ],
+      "mechanism_reasoning": "Both incidents involve a date\u2011range calculation that subtracts a fixed number of days from the current date without correctly handling the year boundary. In early January, subtracting 30 days rolls back into the previous year, but the code fails to adjust the year component, causing the filter to default to the wrong year. This is an off\u2011by\u2011one year calculation bug stemming from manual date arithmetic.",
+      "why_symptoms_look_different": null,
+      "past_fix_assessment": "The past fix was a real fix that replaced the manual date arithmetic with a well\u2011tested date\u2011library function, directly addressing the root cause. No workaround remains, so the underlying mechanism has been resolved in that ticket.",
+      "likely_root_cause": "Year\u2011rollover off\u2011by\u2011one error in manual date calculation for the default date range.",
+      "recommended_action": "Implement the same fix: replace the manual subtraction logic with a reliable date library function that correctly handles year boundaries. Add unit tests covering the early\u2011January edge case and verify across all environments.",
+      "evidence_gaps": []
+    },
+    "checks": {
+      "no_hallucinated_ids": true,
+      "expected_no_match": false
+    },
+    "all_passed": false,
+    "elapsed_s": 56.3
+  },
+  {
+    "label": "neg-1",
+    "verdict": {
+      "verdict": "no_match",
+      "confidence": 0.96,
+      "matched_ticket_ids": [],
+      "mechanism_reasoning": "The new bug involves PDF rendering where a blank second page appears only when printing from Safari on macOS, suggesting a browser\u2011specific rendering or page\u2011size handling issue. None of the candidate tickets involve PDF generation, page layout, or Safari rendering; they are all about timing/debounce logic, timezone/date handling, or character encoding. Therefore there is no shared root\u2011cause mechanism.",
+      "why_symptoms_look_different": null,
+      "past_fix_assessment": null,
+      "likely_root_cause": "Browser\u2011specific PDF rendering bug in Safari on macOS, likely related to incorrect page size handling or missing content stream during print rendering.",
+      "recommended_action": "Reproduce the issue with the same PDF file across browsers (Chrome, Firefox) and OS versions. Capture the PDF generation logs and inspect the PDF content streams for page size definitions. If the PDF is correct, investigate Safari's print rendering pipeline for known bugs or apply a Safari\u2011specific workaround (e.g., force explicit page dimensions or add a dummy element to trigger proper rendering). Consider updating the PDF generation library or adding a post\u2011processing step that normalizes page sizes for Safari.",
+      "evidence_gaps": [
+        "No stack trace or error logs from the PDF generation process.",
+        "No details about the PDF library or code path that creates the invoices.",
+        "No information on whether the blank page appears when viewing the PDF directly in Safari (without printing).",
+        "No reproduction steps beyond printing from Safari on macOS."
+      ]
+    },
+    "checks": {
+      "no_hallucinated_ids": true,
+      "expected_no_match": true
+    },
+    "all_passed": true,
+    "elapsed_s": 5.0
+  },
+  {
+    "label": "neg-2",
+    "verdict": {
+      "verdict": "no_match",
+      "confidence": 0.9,
+      "matched_ticket_ids": [],
+      "mechanism_reasoning": "All candidate incidents involve distinct mechanisms: duplicate webhook events (TICKET-5139), frontend debounce leading to duplicate orders (TICKET-1042), database connection leaks causing 502 errors or performance degradation (TICKET-4077, TICKET-4009), and a third\u2011party ML feature\u2011store slowdown (TICKET-5152). The new bug concerns delayed SMS delivery for a specific mobile carrier, likely rooted in carrier routing delays, SMS gateway throttling, or queue back\u2011log. None of the past tickets share this carrier\u2011routing or SMS\u2011gateway delay mechanism, and the external dependency (mobile carrier) differs from the ML feature\u2011store dependency, so they are considered separate mechanisms per the rules.",
+      "why_symptoms_look_different": null,
+      "past_fix_assessment": null,
+      "likely_root_cause": "Carrier\u2011specific routing delay or SMS gateway throttling causing a backlog that adds ~10\u202fminutes to message delivery.",
+      "recommended_action": "1. Gather detailed delivery timestamps from the SMS gateway for affected and unaffected carriers. 2. Check the gateway's queue depth and rate\u2011limit settings during the incidents. 3. Contact the mobile carrier to inquire about any routing anomalies or throttling on their network. 4. Implement monitoring/alerting on SMS delivery latency per carrier. 5. If the gateway is the bottleneck, consider adding a retry/back\u2011off mechanism or alternative provider for the affected carrier.",
+      "evidence_gaps": [
+        "No logs or metrics from the SMS gateway showing queue length or throttling events.",
+        "No carrier\u2011side diagnostics confirming routing delays.",
+        "No comparison with delivery times for other carriers to isolate the issue.",
+        "No reproduction steps or load patterns that trigger the delay."
+      ]
+    },
+    "checks": {
+      "no_hallucinated_ids": true,
+      "expected_no_match": true
+    },
+    "all_passed": true,
+    "elapsed_s": 5.6
+  }
+]

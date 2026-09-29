@@ -1,0 +1,362 @@
+[
+  {
+    "ticket": "TICKET-1031",
+    "variant": "symptom_only",
+    "threshold": null,
+    "n_facts": 107,
+    "family_hits_top_n": 1,
+    "family_size": 3,
+    "first_family_rank": 1,
+    "top": [
+      "TICKET-1042",
+      "TICKET-5139",
+      "TICKET-5041",
+      "TICKET-5079",
+      "TICKET-2119"
+    ],
+    "unmapped_facts": 2
+  },
+  {
+    "ticket": "TICKET-1031",
+    "variant": "symptom_only",
+    "threshold": 0.3,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-1031",
+    "variant": "symptom_only",
+    "threshold": 0.5,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-1031",
+    "variant": "full",
+    "threshold": null,
+    "n_facts": 105,
+    "family_hits_top_n": 3,
+    "family_size": 3,
+    "first_family_rank": 1,
+    "top": [
+      "TICKET-1001",
+      "TICKET-5117",
+      "TICKET-1042",
+      "TICKET-1108",
+      "TICKET-5124"
+    ],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-1031",
+    "variant": "full",
+    "threshold": 0.3,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-1031",
+    "variant": "full",
+    "threshold": 0.5,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-2201",
+    "variant": "symptom_only",
+    "threshold": null,
+    "n_facts": 112,
+    "family_hits_top_n": 1,
+    "family_size": 3,
+    "first_family_rank": 5,
+    "top": [
+      "TICKET-1042",
+      "TICKET-5139",
+      "TICKET-5001",
+      "TICKET-5079",
+      "TICKET-2119"
+    ],
+    "unmapped_facts": 1
+  },
+  {
+    "ticket": "TICKET-2201",
+    "variant": "symptom_only",
+    "threshold": 0.3,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-2201",
+    "variant": "symptom_only",
+    "threshold": 0.5,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-2201",
+    "variant": "full",
+    "threshold": null,
+    "n_facts": 109,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": 6,
+    "top": [
+      "TICKET-1042",
+      "TICKET-5139",
+      "TICKET-3011",
+      "TICKET-5079",
+      "TICKET-5058"
+    ],
+    "unmapped_facts": 1
+  },
+  {
+    "ticket": "TICKET-2201",
+    "variant": "full",
+    "threshold": 0.3,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-2201",
+    "variant": "full",
+    "threshold": 0.5,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-3142",
+    "variant": "symptom_only",
+    "threshold": null,
+    "n_facts": 115,
+    "family_hits_top_n": 2,
+    "family_size": 3,
+    "first_family_rank": 1,
+    "top": [
+      "TICKET-3098",
+      "TICKET-5088",
+      "TICKET-2003",
+      "TICKET-5095",
+      "TICKET-3054"
+    ],
+    "unmapped_facts": 3
+  },
+  {
+    "ticket": "TICKET-3142",
+    "variant": "symptom_only",
+    "threshold": 0.3,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-3142",
+    "variant": "symptom_only",
+    "threshold": 0.5,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-3142",
+    "variant": "full",
+    "threshold": null,
+    "n_facts": 116,
+    "family_hits_top_n": 2,
+    "family_size": 3,
+    "first_family_rank": 2,
+    "top": [
+      "TICKET-5095",
+      "TICKET-3054",
+      "TICKET-2003",
+      "TICKET-3098",
+      "TICKET-5147"
+    ],
+    "unmapped_facts": 3
+  },
+  {
+    "ticket": "TICKET-3142",
+    "variant": "full",
+    "threshold": 0.3,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-3142",
+    "variant": "full",
+    "threshold": 0.5,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 3,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-4132",
+    "variant": "symptom_only",
+    "threshold": null,
+    "n_facts": 116,
+    "family_hits_top_n": 1,
+    "family_size": 2,
+    "first_family_rank": 2,
+    "top": [
+      "TICKET-5139",
+      "TICKET-4077",
+      "TICKET-3054",
+      "TICKET-5152",
+      "TICKET-5033"
+    ],
+    "unmapped_facts": 1
+  },
+  {
+    "ticket": "TICKET-4132",
+    "variant": "symptom_only",
+    "threshold": 0.3,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 2,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-4132",
+    "variant": "symptom_only",
+    "threshold": 0.5,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 2,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-4132",
+    "variant": "full",
+    "threshold": null,
+    "n_facts": 116,
+    "family_hits_top_n": 1,
+    "family_size": 2,
+    "first_family_rank": 2,
+    "top": [
+      "TICKET-5139",
+      "TICKET-4077",
+      "TICKET-5033",
+      "TICKET-3054",
+      "TICKET-1042"
+    ],
+    "unmapped_facts": 1
+  },
+  {
+    "ticket": "TICKET-4132",
+    "variant": "full",
+    "threshold": 0.3,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 2,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "ticket": "TICKET-4132",
+    "variant": "full",
+    "threshold": 0.5,
+    "n_facts": 0,
+    "family_hits_top_n": 0,
+    "family_size": 2,
+    "first_family_rank": null,
+    "top": [],
+    "unmapped_facts": 0
+  },
+  {
+    "negative": "Exported PDF invoices show a blank second page when printed from Safari on macOS",
+    "threshold": null,
+    "n_facts": 108,
+    "top": [
+      "TICKET-1001",
+      "TICKET-5029",
+      "TICKET-3011",
+      "TICKET-3054",
+      "TICKET-2119"
+    ]
+  },
+  {
+    "negative": "Exported PDF invoices show a blank second page when printed from Safari on macOS",
+    "threshold": 0.3,
+    "n_facts": 0,
+    "top": []
+  },
+  {
+    "negative": "Exported PDF invoices show a blank second page when printed from Safari on macOS",
+    "threshold": 0.5,
+    "n_facts": 0,
+    "top": []
+  },
+  {
+    "negative": "Two-factor SMS codes arrive ten minutes late for customers on one mobile carrier",
+    "threshold": null,
+    "n_facts": 108,
+    "top": [
+      "TICKET-5139",
+      "TICKET-1042",
+      "TICKET-2067",
+      "TICKET-3011",
+      "TICKET-1001"
+    ]
+  },
+  {
+    "negative": "Two-factor SMS codes arrive ten minutes late for customers on one mobile carrier",
+    "threshold": 0.3,
+    "n_facts": 0,
+    "top": []
+  },
+  {
+    "negative": "Two-factor SMS codes arrive ten minutes late for customers on one mobile carrier",
+    "threshold": 0.5,
+    "n_facts": 0,
+    "top": []
+  }
+]

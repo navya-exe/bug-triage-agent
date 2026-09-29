@@ -1,0 +1,298 @@
+{
+  "_dataset_notes": {
+    "purpose": "Synthetic bug history for QA/Bug Triage Memory Agent (Hindsight hackathon project)",
+    "structure": "35 tickets total. Contains 4 planted 'root-cause families' where the SAME underlying bug resurfaces multiple times under DIFFERENT surface symptoms, plus 18 unrelated noise/control tickets so the agent has to actually discriminate.",
+    "families": {
+      "family_debounce_race": "4 tickets - race condition in a click/submit debounce handler, each manifesting as a totally different-looking symptom",
+      "family_cache_invalidation": "4 tickets - stale-cache bug appearing in different features",
+      "family_timezone_offbyone": "4 tickets - naive/local datetime handling causing off-by-one-day issues in different contexts",
+      "family_conn_pool_leak": "3 tickets - DB connection not released on error path, causing slow degradation and eventual crashes"
+    },
+    "usage": "Retain tickets 1-34 (or however many you want as 'history') into Hindsight first. Hold back ONE ticket from a family (e.g. TICKET-0031) and submit it live as the 'new' bug during your demo to show the agent catching the non-obvious recurrence.",
+    "field_notes": {
+      "fix_type": "'real_fix' = root cause actually addressed. 'workaround' = symptom suppressed, root cause still present. This is the key field your agent should reason over.",
+      "family_tag": "Internal-only field for YOU to verify correctness during dev/testing. A real production system wouldn't have this - your agent must infer the connection from root_cause similarity, not this tag. Consider stripping it before you feed data into recall-testing if you want a truly blind test."
+    }
+  },
+  "tickets": [
+
+    {
+      "ticket_id": "TICKET-1001",
+      "family_tag": "family_debounce_race",
+      "date": "2026-02-11",
+      "reporter": "Priya Nair",
+      "component": "checkout-frontend",
+      "symptom_text": "Customers on mobile Safari say the 'Pay Now' button just spins forever and nothing happens. Happens maybe 1 in 20 checkouts. Can't reproduce on desktop Chrome.",
+      "symptom_class": "hang",
+      "conditions": "mobile Safari, poor/variable network latency, rapid tap behavior",
+      "root_cause": "Click handler fires the payment API call before the debounce guard flag is set (state update is async), so a fast double-tap on a slow connection triggers two overlapping requests and the UI gets stuck waiting on a promise that never resolves cleanly because of a race between the two responses.",
+      "fix_applied": "Increased debounce timeout from 200ms to 800ms and added a loading spinner overlay to visually block repeat taps.",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": null,
+      "lesson_note": "Didn't have time to refactor the click handler to be synchronous before the release freeze. Flagged as tech debt."
+    },
+    {
+      "ticket_id": "TICKET-1042",
+      "family_tag": "family_debounce_race",
+      "date": "2026-04-03",
+      "reporter": "Marcus Webb",
+      "component": "orders-service",
+      "symptom_text": "Support escalation: three customers this week were charged twice and got two order confirmation emails for a single purchase. No errors in payment gateway logs.",
+      "symptom_class": "wrong-output",
+      "conditions": "occurs under high checkout-page latency; correlates with mobile traffic spikes",
+      "root_cause": "Same underlying issue as TICKET-1001 - the frontend debounce guard is set via React state, which batches/delays under certain conditions, allowing two submit calls through before the guard takes effect. This time it manifested as duplicate order creation rather than a visible hang, because both requests succeeded instead of one timing out.",
+      "fix_applied": "Added a backend idempotency key check on the orders endpoint to reject duplicate submissions within a 10s window.",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": null,
+      "lesson_note": "This is a band-aid on the backend. The frontend race condition from TICKET-1001 is still unfixed and will keep causing new symptoms elsewhere in the checkout flow."
+    },
+    {
+      "ticket_id": "TICKET-1108",
+      "family_tag": "family_debounce_race",
+      "date": "2026-06-22",
+      "reporter": "Ana Torres",
+      "component": "payments-gateway",
+      "symptom_text": "Payment provider dashboard shows we're sending duplicate authorization requests for ~0.3% of transactions. Provider flagged our account for review.",
+      "symptom_class": "wrong-output",
+      "conditions": "same conditions as before - mobile, slow network, fast repeat taps",
+      "root_cause": "Root cause identical to TICKET-1001/1042. The idempotency key fix in TICKET-1042 only covers the orders-service; the payment authorization call happens slightly earlier in the flow and isn't covered by that key, so the double-click race still slips through at this layer.",
+      "fix_applied": "Extended the idempotency key check to also wrap the payment authorization call.",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": "TICKET-1042",
+      "lesson_note": "Third time patching a symptom of the same click-handler race condition. We really need to fix the actual debounce logic in the frontend."
+    },
+    {
+      "ticket_id": "TICKET-1031",
+      "family_tag": "family_debounce_race",
+      "date": "2026-09-14",
+      "reporter": "James Okonkwo",
+      "component": "checkout-frontend",
+      "symptom_text": "A customer submitted a support ticket saying the 'Add to Cart' button on the product page added the item twice when they tapped it once on their phone. Screenshot shows quantity: 2 for a single tap.",
+      "symptom_class": "wrong-output",
+      "conditions": "mobile device, tapped once but screen was slow to respond so user may have tapped again without realizing",
+      "root_cause": null,
+      "fix_applied": null,
+      "fix_type": null,
+      "status": "open",
+      "reopened_from": null,
+      "lesson_note": "NOTE: This is the 'live demo' ticket - submit this one fresh during the demo and let the agent connect it to TICKET-1001/1042/1108. It is the same click-handler race condition surfacing in a third UI location (cart) that nobody has fixed at the source."
+    },
+
+    {
+      "ticket_id": "TICKET-2003",
+      "family_tag": "family_cache_invalidation",
+      "date": "2026-02-19",
+      "reporter": "Sofia Lindgren",
+      "component": "user-profile-service",
+      "symptom_text": "Users report their new profile picture doesn't show up after upload - old photo stays visible for hours, sometimes a full day.",
+      "symptom_class": "wrong-output",
+      "conditions": "affects all users, worse on CDN edge nodes far from origin",
+      "root_cause": "Profile image URLs are cached at the CDN edge with a 24h TTL and no cache-busting on write. When a user uploads a new photo, the old cached version at edge nodes keeps serving until natural TTL expiry.",
+      "fix_applied": "Reduced CDN TTL for profile images from 24h to 1h.",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": null,
+      "lesson_note": "Doesn't fully fix it, just shrinks the stale window. Real fix would be versioned URLs or explicit purge on upload."
+    },
+    {
+      "ticket_id": "TICKET-2067",
+      "family_tag": "family_cache_invalidation",
+      "date": "2026-05-08",
+      "reporter": "Derek Huang",
+      "component": "product-catalog-service",
+      "symptom_text": "Marketing ran a flash sale, updated prices in the admin panel, but customers on the app were still seeing old (higher) prices for almost 40 minutes after the sale went live. Lost sales, angry Slack thread.",
+      "symptom_class": "wrong-output",
+      "conditions": "high-traffic sale event, catalog data served through the same edge caching layer as profile images",
+      "root_cause": "Same caching layer and same lack-of-invalidation-on-write pattern as TICKET-2003, this time applied to pricing data instead of profile images. The 1h TTL reduction from TICKET-2003 wasn't applied globally - pricing data still had the original 24h/no-invalidation config because it's cached by a different service that shares the same underlying CDN infra but wasn't updated.",
+      "fix_applied": "Manually reduced TTL for the pricing cache key pattern to 5 minutes.",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": null,
+      "lesson_note": "We keep discovering new services that share this caching infra but never got the TTL fix applied. This is a systemic gap, not an isolated bug."
+    },
+    {
+      "ticket_id": "TICKET-2119",
+      "family_tag": "family_cache_invalidation",
+      "date": "2026-07-30",
+      "reporter": "Priya Nair",
+      "component": "search-service",
+      "symptom_text": "A product was marked out-of-stock and removed from the warehouse feed an hour ago but it's still showing up as purchasable in search results.",
+      "symptom_class": "wrong-output",
+      "conditions": "search index refresh timing, same CDN caching layer",
+      "root_cause": "Same root cause family - search result pages are cached at the same edge layer, TTL never got the reduction applied here either. This is the third distinct service found to have the stale-cache-on-write problem.",
+      "fix_applied": "Reduced TTL to 5 minutes for search result cache keys, matching TICKET-2067's fix.",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": null,
+      "lesson_note": "Third team, third manual TTL patch. Someone should audit every service behind this CDN layer instead of fixing them one at a time as they're reported."
+    },
+    {
+      "ticket_id": "TICKET-2201",
+      "family_tag": "family_cache_invalidation",
+      "date": "2026-09-20",
+      "reporter": "Ana Torres",
+      "component": "wishlist-service",
+      "symptom_text": "Customer emailed support confused because they deleted an item from their wishlist yesterday but it 'came back' when they checked today on a different device.",
+      "symptom_class": "wrong-output",
+      "conditions": "cross-device sync, same shared CDN/edge cache infra",
+      "root_cause": null,
+      "fix_applied": null,
+      "fix_type": null,
+      "status": "open",
+      "reopened_from": null,
+      "lesson_note": "Likely the fourth instance of the same unaudited caching layer problem from TICKET-2003/2067/2119. Good second candidate for a live demo ticket if you want two family reveals."
+    },
+
+    {
+      "ticket_id": "TICKET-3011",
+      "family_tag": "family_timezone_offbyone",
+      "date": "2026-03-02",
+      "reporter": "Marcus Webb",
+      "component": "billing-service",
+      "symptom_text": "A customer in Berlin says their invoice is dated one day earlier than when they were actually charged. They're disputing the invoice with their accounting team.",
+      "symptom_class": "wrong-output",
+      "conditions": "affects customers in timezones significantly ahead of UTC, near midnight boundary",
+      "root_cause": "Invoice generation code uses `new Date()` and formats it using the server's local timezone (UTC) without converting to the customer's stored timezone, so a charge that happens at 11pm customer-local-time (already the next UTC day... or previous, depending on offset direction) gets the wrong date printed.",
+      "fix_applied": "Added a hardcoded UTC+1 offset adjustment specifically for the EU billing region.",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": null,
+      "lesson_note": "This only patches EU. Doesn't help customers in other timezones, and will break again for daylight saving transitions."
+    },
+    {
+      "ticket_id": "TICKET-3054",
+      "family_tag": "family_timezone_offbyone",
+      "date": "2026-04-27",
+      "reporter": "Derek Huang",
+      "component": "analytics-service",
+      "symptom_text": "Monthly usage report for March shows one extra day of data compared to what's in the raw event logs - April 1st data is bleeding into the March report.",
+      "symptom_class": "wrong-output",
+      "conditions": "month-boundary reports, same underlying local-time-vs-UTC handling",
+      "root_cause": "Same class of bug as TICKET-3011 - the report generator buckets events by calendar day using server-local time instead of a consistent UTC boundary, so events near midnight get bucketed into the wrong day depending on server timezone config, which is inconsistent across our report-generation workers.",
+      "fix_applied": "Manually adjusted the query's date range boundaries for this specific report by -1 day as a patch.",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": null,
+      "lesson_note": "Same pattern as the billing invoice bug from a month ago. We have a systemic issue with datetime handling, not isolated per-feature bugs."
+    },
+    {
+      "ticket_id": "TICKET-3098",
+      "family_tag": "family_timezone_offbyone",
+      "date": "2026-06-15",
+      "reporter": "Sofia Lindgren",
+      "component": "scheduler-service",
+      "symptom_text": "A scheduled nightly job that's supposed to run at 2am local time ran an hour early during the DST transition weekend, which caused a data export to fire before the previous day's data had fully landed.",
+      "symptom_class": "intermittent",
+      "conditions": "daylight saving transition weekend, same server-local-time datetime handling pattern",
+      "root_cause": "Same root family as TICKET-3011/3054. The scheduler stores cron expressions evaluated against server-local time rather than UTC, so DST transitions shift the effective execution time. This is a specific consequence of the broader local-time-vs-UTC problem already seen twice this year.",
+      "fix_applied": "Manually adjusted the cron expression by an hour for the DST-affected window; reverted after the transition.",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": null,
+      "lesson_note": "This is the third incident this year from the same 'we don't consistently store/compare times in UTC' root cause. Should be a company-wide engineering initiative, not a per-ticket patch."
+    },
+    {
+      "ticket_id": "TICKET-3142",
+      "family_tag": "family_timezone_offbyone",
+      "date": "2026-09-25",
+      "reporter": "James Okonkwo",
+      "component": "calendar-integration",
+      "symptom_text": "A user in Sydney says a meeting they scheduled for 9am shows up as 9am the previous day in their synced calendar app.",
+      "symptom_class": "wrong-output",
+      "conditions": "timezone far ahead of UTC, calendar sync feature",
+      "root_cause": null,
+      "fix_applied": null,
+      "fix_type": null,
+      "status": "open",
+      "reopened_from": null,
+      "lesson_note": "Strong candidate for a second/third live demo ticket to show the agent recognizing the SAME systemic root cause across four completely different features (billing, analytics, scheduler, calendar)."
+    },
+
+    {
+      "ticket_id": "TICKET-4009",
+      "family_tag": "family_conn_pool_leak",
+      "date": "2026-03-18",
+      "reporter": "Ana Torres",
+      "component": "orders-api",
+      "symptom_text": "API response times gradually creep up over about 3-4 days after a deploy, from ~120ms average to 2000ms+, until we restart the service and it goes back to normal.",
+      "symptom_class": "perf",
+      "conditions": "gradual degradation over days, resolved by restart, worse under sustained traffic",
+      "root_cause": "A database connection is opened per-request but not released in the error-handling path when a query throws an exception - only the happy path calls `connection.release()`. Under normal traffic a small percentage of queries error out (transient DB issues, occasional bad input), and each one leaks a connection, slowly exhausting the pool.",
+      "fix_applied": "Added a cron job to restart the orders-api service every night at 3am to clear the leaked connections before they become critical.",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": null,
+      "lesson_note": "Everyone knows the nightly restart is a hack. Nobody has gone in and fixed the actual missing connection.release() in the catch block."
+    },
+    {
+      "ticket_id": "TICKET-4077",
+      "family_tag": "family_conn_pool_leak",
+      "date": "2026-06-05",
+      "reporter": "Priya Nair",
+      "component": "inventory-service",
+      "symptom_text": "Getting intermittent 502 errors from inventory-service during peak evening traffic, roughly 2-3 times a week, always resolves itself or after an on-call restarts the pod.",
+      "symptom_class": "intermittent",
+      "conditions": "peak traffic windows, resolves after restart, been happening for weeks",
+      "root_cause": "Same connection-leak pattern as TICKET-4009 - this service shares the same database access library/wrapper that has the missing release-on-error bug. Peak traffic means more transient errors, which means faster pool exhaustion, which is why it correlates with evening peaks specifically.",
+      "fix_applied": "On-call runbook updated to say 'restart the pod if 502s spike during peak hours.'",
+      "fix_type": "workaround",
+      "status": "closed",
+      "reopened_from": null,
+      "lesson_note": "This is the exact same bug as the orders-api restart issue from TICKET-4009, just in a different service using the same shared DB wrapper library. The library itself needs the fix, not each individual service."
+    },
+    {
+      "ticket_id": "TICKET-4132",
+      "family_tag": "family_conn_pool_leak",
+      "date": "2026-08-11",
+      "reporter": "Marcus Webb",
+      "component": "notifications-worker",
+      "symptom_text": "notifications-worker pod got OOM-killed twice last night. Memory usage graph shows a steady climb over about 60 hours before the crash.",
+      "symptom_class": "crash",
+      "conditions": "long-running worker process, no traffic-based pattern (background job, not request-driven)",
+      "root_cause": null,
+      "fix_applied": null,
+      "fix_type": null,
+      "status": "open",
+      "reopened_from": null,
+      "lesson_note": "This looks like a memory leak, not a connection pool issue on the surface (crash vs slow degradation, background worker vs API). Good 'hard mode' demo ticket - the agent needs to recognize this is probably the SAME shared DB wrapper bug as TICKET-4009/4077 even though the symptom class (crash) and component type (background worker vs request-handling API) look quite different."
+    },
+
+    { "ticket_id": "TICKET-5001", "family_tag": null, "date": "2026-02-05", "reporter": "Derek Huang", "component": "auth-service", "symptom_text": "Password reset emails are landing in spam for Gmail users specifically.", "symptom_class": "wrong-output", "conditions": "Gmail recipients only", "root_cause": "SPF/DKIM records for the transactional email domain were misconfigured after a DNS migration.", "fix_applied": "Corrected SPF and DKIM DNS records.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "One-off DNS config issue, unrelated to any other bug family." },
+
+    { "ticket_id": "TICKET-5014", "family_tag": null, "date": "2026-02-27", "reporter": "Sofia Lindgren", "component": "image-upload-service", "symptom_text": "Uploading a HEIC photo from an iPhone crashes the upload pipeline with an unhandled format error.", "symptom_class": "crash", "conditions": "iOS HEIC format specifically, other formats unaffected", "root_cause": "Image processing library doesn't support HEIC and the format-detection step throws instead of falling back gracefully.", "fix_applied": "Added HEIC-to-JPEG conversion step before the existing pipeline.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Isolated format-support gap, resolved cleanly." },
+
+    { "ticket_id": "TICKET-5029", "family_tag": null, "date": "2026-03-10", "reporter": "James Okonkwo", "component": "admin-dashboard", "symptom_text": "Bulk CSV export from the admin dashboard times out for accounts with more than ~50,000 rows.", "symptom_class": "perf", "conditions": "large accounts only", "root_cause": "Export endpoint builds the entire CSV in memory before streaming, no pagination or streaming write.", "fix_applied": "Refactored export to stream rows directly to the response instead of buffering in memory.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Straightforward performance fix, no recurrence expected." },
+
+    { "ticket_id": "TICKET-5033", "family_tag": null, "date": "2026-03-21", "reporter": "Ana Torres", "component": "notifications-service", "symptom_text": "Push notifications for Android users show garbled emoji characters (mojibake).", "symptom_class": "wrong-output", "conditions": "Android devices, emoji in notification text", "root_cause": "Notification payload wasn't being encoded as UTF-8 before being handed to the push provider's API.", "fix_applied": "Explicitly set UTF-8 encoding on the payload before sending.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Simple encoding bug." },
+
+    { "ticket_id": "TICKET-5041", "family_tag": null, "date": "2026-04-02", "reporter": "Marcus Webb", "component": "search-service", "symptom_text": "Searching for product names with an apostrophe (e.g. \"men's shoes\") returns zero results.", "symptom_class": "wrong-output", "conditions": "search queries containing apostrophes or other special characters", "root_cause": "Search query wasn't being escaped before being passed to the underlying search engine's query syntax, so the apostrophe broke the query parser.", "fix_applied": "Added proper escaping for special characters in the search query builder.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Standard input-sanitization gap." },
+
+    { "ticket_id": "TICKET-5058", "family_tag": null, "date": "2026-04-15", "reporter": "Priya Nair", "component": "billing-service", "symptom_text": "A customer was charged in USD instead of their selected currency (EUR) for a subscription renewal.", "symptom_class": "wrong-output", "conditions": "specific to subscription auto-renewal flow, not initial signup", "root_cause": "Auto-renewal job reads currency from a cached default at job-creation time rather than the customer's current profile setting, so a currency change after signup doesn't propagate to renewals.", "fix_applied": "Renewal job now re-fetches currency from the live customer profile at renewal time instead of using the cached value.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Distinct from the caching family above - this is a stale-reference-at-job-creation issue, not a CDN/edge caching TTL issue, even though it superficially involves 'stale data.'" },
+
+    { "ticket_id": "TICKET-5066", "family_tag": null, "date": "2026-05-01", "reporter": "Derek Huang", "component": "mobile-app", "symptom_text": "App crashes on launch for users on Android 9 and below, works fine on Android 10+.", "symptom_class": "crash", "conditions": "Android OS version below 10", "root_cause": "A newer SDK dependency required a system API only available on Android 10+, and there was no version check/fallback.", "fix_applied": "Added an OS version check with a graceful degraded-mode fallback for older Android versions.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Platform compatibility gap, isolated fix." },
+
+    { "ticket_id": "TICKET-5079", "family_tag": null, "date": "2026-05-19", "reporter": "Sofia Lindgren", "component": "recommendation-engine", "symptom_text": "Recommendation engine occasionally recommends a product to a customer that they already purchased and returned for being defective.", "symptom_class": "wrong-output", "conditions": "customers with return history", "root_cause": "Return events weren't being fed into the same event stream that purchase events use to suppress repeat recommendations, so returns were invisible to the recommendation model.", "fix_applied": "Added return events to the suppression event stream.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Missing data pipeline connection, straightforward once identified." },
+
+    { "ticket_id": "TICKET-5088", "family_tag": null, "date": "2026-06-01", "reporter": "James Okonkwo", "component": "auth-service", "symptom_text": "Users report getting logged out randomly every few hours even when actively using the app.", "symptom_class": "intermittent", "conditions": "affects all users somewhat randomly, more frequent for users on the mobile app", "root_cause": "Session token refresh logic had a bug where a failed silent-refresh attempt (e.g. brief network blip) would clear the existing valid token instead of just retrying, effectively logging the user out on any transient network hiccup.", "fix_applied": "Changed refresh failure handling to retry up to 3 times before clearing the session, instead of clearing on first failure.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Clean fix to faulty error-handling logic." },
+
+    { "ticket_id": "TICKET-5095", "family_tag": null, "date": "2026-06-20", "reporter": "Ana Torres", "component": "reporting-dashboard", "symptom_text": "Revenue chart on the executive dashboard shows a sudden unexplained dip every Sunday.", "symptom_class": "wrong-output", "conditions": "recurring weekly pattern, Sundays specifically", "root_cause": "The batch job that aggregates weekend sales data runs before Sunday's data has fully finished landing from a downstream partner feed that has a slower weekend SLA, so Sunday numbers are always partial when the chart renders.", "fix_applied": "Delayed the aggregation job's Sunday run by 3 hours to allow the partner feed to complete.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Timing/scheduling issue distinct from the timezone-handling family - this is about job ordering relative to an external data SLA, not date-bucketing logic." },
+
+    { "ticket_id": "TICKET-5103", "family_tag": null, "date": "2026-07-08", "reporter": "Marcus Webb", "component": "admin-dashboard", "symptom_text": "Two admins editing the same customer record at the same time silently overwrite each other's changes with no warning.", "symptom_class": "wrong-output", "conditions": "concurrent edits by multiple admins, rare but has caused real data loss twice", "root_cause": "No optimistic locking or version check on record updates - last write simply wins.", "fix_applied": "Added a version field and optimistic locking check that rejects a save if the record was modified since it was loaded, showing a conflict warning instead.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Concurrency control gap, cleanly resolved." },
+
+    { "ticket_id": "TICKET-5117", "family_tag": null, "date": "2026-07-22", "reporter": "Priya Nair", "component": "checkout-frontend", "symptom_text": "Promo code field rejects valid promo codes if the user pastes them with a trailing space.", "symptom_class": "wrong-output", "conditions": "promo code copy-pasted from an email or ad", "root_cause": "Promo code validation does an exact string match without trimming whitespace.", "fix_applied": "Added `.trim()` to the promo code input before validation.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Trivial input-handling bug, not related to the checkout debounce family despite same component." },
+
+    { "ticket_id": "TICKET-5124", "family_tag": null, "date": "2026-08-03", "reporter": "Derek Huang", "component": "inventory-service", "symptom_text": "Warehouse team reports inventory counts are off by exactly the quantity of one specific bulk order from two weeks ago - looks like it was double-counted.", "symptom_class": "wrong-output", "conditions": "specific to bulk/wholesale order type", "root_cause": "Bulk orders trigger two separate inventory-adjustment events (one from the order service, one from the fulfillment service) that weren't deduplicated, because bulk orders follow a different code path than standard orders that was added later and missed the dedup logic.", "fix_applied": "Added the same deduplication key used for standard orders to the bulk order code path.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Code path divergence bug - unrelated to the checkout race-condition family even though it also involves 'double' events." },
+
+    { "ticket_id": "TICKET-5131", "family_tag": null, "date": "2026-08-14", "reporter": "Sofia Lindgren", "component": "mobile-app", "symptom_text": "Dark mode toggle in settings doesn't persist after force-closing and reopening the app.", "symptom_class": "wrong-output", "conditions": "iOS only, after force-quit specifically (not after normal backgrounding)", "root_cause": "Setting was being saved to an in-memory store that wasn't flushed to persistent storage on force-quit, only on graceful background transition.", "fix_applied": "Changed to write the setting to persistent storage immediately on toggle, rather than batching the write for later.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "Isolated persistence-timing bug." },
+
+    { "ticket_id": "TICKET-5139", "family_tag": null, "date": "2026-08-27", "reporter": "James Okonkwo", "component": "notifications-worker", "symptom_text": "Customers are getting the same 'your order shipped' notification 2-3 times, minutes apart.", "symptom_class": "wrong-output", "conditions": "shipping notifications specifically, not other notification types", "root_cause": "Shipping status webhook from the carrier partner sometimes fires multiple times for the same status change (a known quirk of that partner's API), and there was no idempotency check on the notification trigger for this specific webhook handler.", "fix_applied": "Added a dedup check keyed on carrier tracking number + status, ignoring repeat webhook fires within a 1-hour window.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "External partner API quirk, unrelated to the internal connection-leak family despite superficial 'duplicate' similarity to the checkout family - worth having in the dataset specifically as a near-miss distractor." },
+
+    { "ticket_id": "TICKET-5147", "family_tag": null, "date": "2026-09-05", "reporter": "Ana Torres", "component": "admin-dashboard", "symptom_text": "Date range filter on the sales report defaults to showing data from the wrong year when selected in early January.", "symptom_class": "wrong-output", "conditions": "only happens in the first few days of January", "root_cause": "Default date range calculation subtracts 30 days from 'today' without properly handling the year rollover in the date library being used.", "fix_applied": "Replaced manual date math with a well-tested date library function for the 30-day-ago calculation.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "This is a date-math bug but a distinct mechanism from the timezone family (year-rollover arithmetic error, not local-time-vs-UTC bucketing) - good distractor to test the agent doesn't over-match just because both involve 'dates.'" },
+
+    { "ticket_id": "TICKET-5152", "family_tag": null, "date": "2026-09-11", "reporter": "Marcus Webb", "component": "recommendation-engine", "symptom_text": "Recommendation engine response times spiked to 8+ seconds for about 20 minutes during this morning's traffic spike, then recovered on its own.", "symptom_class": "perf", "conditions": "one-time traffic spike event, self-resolved", "root_cause": "Third-party ML feature-store API had a brief outage/slowdown on their end during our traffic spike; confirmed via their status page, not our infra.", "fix_applied": "Added a circuit breaker to fall back to cached/default recommendations if the feature-store API is slow, instead of waiting indefinitely.", "fix_type": "real_fix", "status": "closed", "reopened_from": null, "lesson_note": "External dependency issue, but we did add real resilience (circuit breaker) rather than just a workaround, so tagged as real_fix." }
+
+  ]
+}

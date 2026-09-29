@@ -1,0 +1,54 @@
+{
+  "TICKET-1031": {
+    "component": "checkout-frontend",
+    "symptom_class": "wrong-output",
+    "symptom_summary": "Add to Cart button adds two items instead of one on a single tap",
+    "conditions": "mobile device; slow UI response leading to possible double tap",
+    "frequency_pattern": null,
+    "mechanism_hypotheses": [
+      "missing debounce on tap event",
+      "event handler invoked twice",
+      "race condition in cart update logic"
+    ],
+    "recall_query": "Add to Cart registers duplicate quantity on a single tap, typically on mobile devices with delayed UI response, resulting in two items being added instead of one."
+  },
+  "TICKET-2201": {
+    "component": "wishlist-service",
+    "symptom_class": "wrong-output",
+    "symptom_summary": "Deleted wishlist item reappears on a different device after sync",
+    "conditions": "cross-device sync, same shared CDN/edge cache infra",
+    "frequency_pattern": null,
+    "mechanism_hypotheses": [
+      "cache staleness",
+      "eventual consistency race",
+      "conflict resolution bug"
+    ],
+    "recall_query": "wishlist item removed on one device reappears on another after synchronization, indicating inconsistent state across devices"
+  },
+  "TICKET-3142": {
+    "component": "calendar-integration",
+    "symptom_class": "wrong-output",
+    "symptom_summary": "Scheduled meeting appears a day earlier in the synced calendar app",
+    "conditions": "timezone far ahead of UTC, calendar sync feature",
+    "frequency_pattern": null,
+    "mechanism_hypotheses": [
+      "incorrect timezone offset handling",
+      "date boundary conversion bug",
+      "daylight saving time miscalculation"
+    ],
+    "recall_query": "Meeting times are displayed a day earlier after sync when the user is in a timezone far ahead of UTC"
+  },
+  "TICKET-4132": {
+    "component": "notifications-worker",
+    "symptom_class": "crash",
+    "symptom_summary": "notifications-worker pod was OOM\u2011killed after memory usage steadily climbed for about 60\u202fhours",
+    "conditions": "long\u2011running background worker process, no traffic\u2011driven load",
+    "frequency_pattern": "occurred twice in one night",
+    "mechanism_hypotheses": [
+      "memory leak",
+      "unbounded queue growth",
+      "inefficient caching"
+    ],
+    "recall_query": "Process terminated by OOM after prolonged runtime with a steady increase in memory usage"
+  }
+}

@@ -1,0 +1,320 @@
+[
+  {
+    "label": "TICKET-1031",
+    "raw_text": "checkout-frontend: A customer submitted a support ticket saying the 'Add to Cart' button on the product page added the item twice when they tapped it once on their phone. Screenshot shows quantity: 2 for a single tap. Conditions: mobile device, tapped once but screen was slow to respond so user may have tapped again without realizing",
+    "extraction": {
+      "component": "checkout-frontend",
+      "symptom_class": "wrong-output",
+      "symptom_summary": "Add to Cart button registers two items after a single tap on mobile",
+      "conditions": "mobile device; UI response lag causing user to possibly tap again quickly",
+      "frequency_pattern": "appears when the screen is slow to respond, leading to duplicate addition; not reported as constant",
+      "mechanism_hypotheses": [
+        "missing debounce on tap event",
+        "event handler invoked twice due to race condition",
+        "state update race causing duplicate write"
+      ],
+      "recall_query": "single tap on a button results in duplicate action, often when UI latency causes rapid re\u2011tap, leading to two items being added instead of one"
+    },
+    "verdict": {
+      "verdict": "recurrence",
+      "confidence": 0.85,
+      "matched_ticket_ids": [
+        "TICKET-1001",
+        "TICKET-1042",
+        "TICKET-1108"
+      ],
+      "mechanism_reasoning": "All three past tickets involve a race condition where a debounce guard is set asynchronously (via React state), allowing rapid successive taps to invoke the same handler twice. The new bug shows duplicate Add\u2011to\u2011Cart actions after a single tap on a slow\u2011responding mobile UI, matching the same missing/ineffective debounce mechanism.",
+      "why_symptoms_look_different": "Earlier incidents manifested as a UI hang (TICKET-1001) or duplicate order creation/payment authorizations (TICKET-1042, TICKET-1108). This bug appears as duplicate items in the cart, but the underlying double\u2011submission race caused by UI lag and insufficient debouncing is the same.",
+      "past_fix_assessment": "The fixes applied previously were workarounds (increased debounce timeout, loading spinners, backend idempotency keys) and do not eliminate the root cause of the asynchronous debounce guard, so the underlying race condition likely remains.",
+      "likely_root_cause": "Missing or ineffective debounce guard on the Add\u2011to\u2011Cart tap handler, causing a race where the guard flag is set after the handler has already been invoked, allowing two submissions when the UI is slow.",
+      "recommended_action": "Implement a robust, synchronous debounce/throttle on the Add\u2011to\u2011Cart button (set guard flag before any async work and clear it only after request completion). Add backend idempotency (e.g., a unique cart\u2011add token) to reject duplicate adds within a short window. Update the UI to display a loading state that blocks further taps until the request resolves.",
+      "evidence_gaps": [
+        "No server logs confirming that two separate add\u2011to\u2011Cart requests were received.",
+        "No stack trace or code snippet showing the current tap handler implementation.",
+        "Unclear whether any backend idempotency already exists for cart modifications."
+      ]
+    },
+    "checks": {
+      "cited a true family member": true,
+      "verdict is not no_match": true,
+      "no hallucinated ticket IDs": true
+    },
+    "all_passed": true
+  },
+  {
+    "label": "TICKET-2201",
+    "raw_text": "wishlist-service: Customer emailed support confused because they deleted an item from their wishlist yesterday but it 'came back' when they checked today on a different device. Conditions: cross-device sync, same shared CDN/edge cache infra",
+    "extraction": {
+      "component": "wishlist-service",
+      "symptom_class": "wrong-output",
+      "symptom_summary": "Deleted wishlist item reappears when viewed on another device after sync",
+      "conditions": "cross-device sync; shared CDN/edge cache infrastructure",
+      "frequency_pattern": null,
+      "mechanism_hypotheses": [
+        "stale CDN cache causing outdated data to be served",
+        "eventual consistency delay between storage and cache",
+        "race condition where concurrent writes overwrite delete"
+      ],
+      "recall_query": "wishlist item deletion does not persist across devices, causing the item to reappear after synchronization"
+    },
+    "verdict": {
+      "verdict": "recurrence",
+      "confidence": 0.78,
+      "matched_ticket_ids": [
+        "TICKET-5103"
+      ],
+      "mechanism_reasoning": "Both incidents stem from a missing concurrency control mechanism. In TICKET-5103 the lack of optimistic locking caused concurrent admin edits to silently overwrite each other (last\u2011write\u2011wins). The new wishlist bug is hypothesized to involve a race where a delete operation is overwritten by a concurrent update from another device, leading to the deleted item reappearing. The underlying root\u2011cause mechanism\u2014absence of version checks/optimistic locking resulting in lost updates\u2014is the same.",
+      "why_symptoms_look_different": "The domains differ: one is an admin dashboard editing customer records, the other is a cross\u2011device wishlist sync. Consequently the user\u2011visible symptom is an overwritten record versus a resurrected wishlist item, but both are manifestations of the same lost\u2011update race condition.",
+      "past_fix_assessment": "The fix for TICKET-5103 introduced optimistic locking with a version field, eliminating the last\u2011write\u2011wins problem. Since the root cause was addressed, applying a similar concurrency\u2011control fix to the wishlist service should resolve the issue.",
+      "likely_root_cause": "Missing optimistic locking or version check on wishlist item updates, allowing concurrent writes to overwrite a delete operation.",
+      "recommended_action": "Review the wishlist-service update path for concurrent operations. Add a version field or compare\u2011and\u2011set logic to enforce optimistic locking. Ensure delete operations invalidate or update any CDN/edge cache entries atomically. Add conflict detection and retry logic for concurrent updates. Deploy tests that simulate cross\u2011device concurrent modifications to verify the fix.",
+      "evidence_gaps": [
+        "No logs or timestamps showing concurrent update/delete events.",
+        "Unclear whether the CDN cache is actually serving stale data or if the race condition is the primary cause.",
+        "No details on current concurrency control mechanisms (if any) used by wishlist-service."
+      ]
+    },
+    "checks": {
+      "cited a true family member": false,
+      "verdict is not no_match": true,
+      "no hallucinated ticket IDs": true
+    },
+    "all_passed": false
+  },
+  {
+    "label": "TICKET-3142",
+    "raw_text": "calendar-integration: A user in Sydney says a meeting they scheduled for 9am shows up as 9am the previous day in their synced calendar app. Conditions: timezone far ahead of UTC, calendar sync feature",
+    "extraction": {
+      "component": "calendar-integration",
+      "symptom_class": "wrong-output",
+      "symptom_summary": "Meeting scheduled for 9\u202fam appears as 9\u202fam the previous day in the synced calendar",
+      "conditions": "User in a timezone far ahead of UTC (e.g., Sydney) using the calendar sync feature",
+      "frequency_pattern": null,
+      "mechanism_hypotheses": [
+        "incorrect timezone offset conversion",
+        "daylight\u2011saving miscalculation",
+        "timestamp serialization error"
+      ],
+      "recall_query": "Meeting times displayed a day earlier in synced calendars for users in far\u2011ahead timezones during calendar synchronization"
+    },
+    "verdict": {
+      "verdict": "recurrence",
+      "confidence": 0.92,
+      "matched_ticket_ids": [
+        "TICKET-3011",
+        "TICKET-3054"
+      ],
+      "mechanism_reasoning": "All three incidents stem from the same underlying mechanism: incorrect handling of timezone offsets when converting timestamps for user\u2011facing output. In the new bug the calendar sync converts a UTC timestamp to the user's local time incorrectly, causing a one\u2011day shift for users far ahead of UTC. TICKET-3011 and TICKET-3054 exhibit the identical flaw\u2014using server\u2011local time or a hard\u2011coded offset instead of a proper per\u2011user timezone conversion\u2014resulting in dates being off by a day at midnight boundaries.",
+      "why_symptoms_look_different": "The components differ (calendar\u2011integration vs billing\u2011service vs analytics\u2011service) and the user\u2011visible artifacts are distinct (calendar event vs invoice date vs usage report), but the root cause is the same timezone conversion error.",
+      "past_fix_assessment": "Both past fixes were workarounds (hard\u2011coded offset adjustment and manual query range tweak) that do not address the fundamental timezone handling logic, so the underlying bug likely remains.",
+      "likely_root_cause": "Timezone conversion logic that assumes server\u2011local time or applies a static offset instead of converting UTC timestamps to the user's stored timezone, leading to off\u2011by\u2011one\u2011day errors for users in far\u2011ahead timezones.",
+      "recommended_action": "Replace the ad\u2011hoc timezone handling with a robust, timezone\u2011aware library (e.g., java.time, moment.js, date\u2011fns). Store all timestamps in UTC and convert to the user's timezone only at presentation. Add comprehensive unit and integration tests covering edge cases around midnight and DST transitions. Conduct a code\u2011base audit to find and fix similar patterns in other services.",
+      "evidence_gaps": [
+        "No code snippet showing how the calendar\u2011integration performs the conversion.",
+        "No logs or stack trace confirming the exact point of failure.",
+        "Unclear whether timestamps are stored in UTC or already localized before sync."
+      ]
+    },
+    "checks": {
+      "cited a true family member": true,
+      "verdict is not no_match": true,
+      "no hallucinated ticket IDs": true
+    },
+    "all_passed": true
+  },
+  {
+    "label": "TICKET-4132",
+    "raw_text": "notifications-worker: notifications-worker pod got OOM-killed twice last night. Memory usage graph shows a steady climb over about 60 hours before the crash. Conditions: long-running worker process, no traffic-based pattern (background job, not request-driven)",
+    "extraction": {
+      "component": "notifications-worker",
+      "symptom_class": "crash",
+      "symptom_summary": "notifications-worker pod was OOM\u2011killed after memory usage steadily increased over about 60\u202fhours",
+      "conditions": "long-running worker process, background job, not request\u2011driven",
+      "frequency_pattern": "occurred twice in one night",
+      "mechanism_hypotheses": [
+        "memory leak",
+        "unbounded queue growth",
+        "inefficient caching"
+      ],
+      "recall_query": "OOM kill of a long\u2011running background worker after a gradual memory climb over many hours"
+    },
+    "verdict": {
+      "verdict": "related_variant",
+      "confidence": 0.73,
+      "matched_ticket_ids": [
+        "TICKET-4077"
+      ],
+      "mechanism_reasoning": "Both incidents are caused by a resource\u2011leak pattern: the past ticket leaked database connections, exhausting the connection pool and causing 502 errors; the new bug shows a steady memory increase leading to OOM, which is a memory\u2011leak variant of the same underlying failure mechanism \u2013 code that fails to release or bound a resource over time.",
+      "why_symptoms_look_different": "The leaked resource differs (DB connections vs heap memory), so the observable failure differs (intermittent 502 errors that disappear after a pod restart vs a pod being OOM\u2011killed after many hours). The timing and symptom class also differ because memory exhaustion manifests as a crash, whereas connection exhaustion manifests as request failures.",
+      "past_fix_assessment": "The past fix for TICKET-4077 was a workaround (restart the pod). The underlying connection\u2011leak bug likely remains, indicating the root\u2011cause pattern (missing release of resources) is still present in the codebase.",
+      "likely_root_cause": "A memory leak in the notifications\u2011worker process, possibly due to an unbounded queue, cache, or other data structure that grows over time without proper cleanup.",
+      "recommended_action": "1. Add detailed memory profiling (heap dumps, pprof) to pinpoint the growing allocation. 2. Review recent code changes for unbounded collections, long\u2011lived goroutines, or caches that are not evicted. 3. Implement bounds or eviction policies for queues/caches. 4. Add alerts on sustained memory growth and consider a graceful pod restart policy as a temporary mitigation. 5. Deploy a fix that ensures all allocated resources are released or bounded.",
+      "evidence_gaps": [
+        "No stack trace or heap dump provided.",
+        "No logs indicating which functions were executing during the memory increase.",
+        "No information about recent code deployments or library updates.",
+        "Unclear whether any external libraries used in the worker have known memory\u2011leak issues."
+      ]
+    },
+    "checks": {
+      "cited a true family member": true,
+      "verdict is not no_match": true,
+      "no hallucinated ticket IDs": true
+    },
+    "all_passed": true
+  },
+  {
+    "label": "distractor-TICKET-5139",
+    "raw_text": "notifications-worker: Customers are getting the same 'your order shipped' notification 2-3 times, minutes apart. Conditions: shipping notifications specifically, not other notification types",
+    "extraction": {
+      "component": "notifications-worker",
+      "symptom_class": "wrong-output",
+      "symptom_summary": "Customers receive the same 'your order shipped' notification 2\u20113 times, minutes apart",
+      "conditions": "Occurs only for shipping notifications; other notification types are unaffected",
+      "frequency_pattern": "Each affected order triggers 2\u20113 duplicate notifications minutes apart",
+      "mechanism_hypotheses": [
+        "message queue retry without deduplication",
+        "duplicate job scheduling",
+        "race condition causing multiple sends"
+      ],
+      "recall_query": "Duplicate shipping notifications are sent multiple times minutes apart for the same order"
+    },
+    "verdict": {
+      "verdict": "recurrence",
+      "confidence": 0.92,
+      "matched_ticket_ids": [
+        "TICKET-5139"
+      ],
+      "mechanism_reasoning": "Both the new bug and TICKET-5139 involve the notifications-worker component sending duplicate shipping notifications because an external event (carrier status webhook) can fire multiple times and the handler lacks an idempotency/deduplication check. The underlying mechanism is a missing deduplication guard for a specific trigger, leading to repeated processing of the same event.",
+      "why_symptoms_look_different": null,
+      "past_fix_assessment": "The past fix for TICKET-5139 was a real fix that added a deduplication check keyed on carrier tracking number + status, eliminating duplicate sends for that webhook. The root cause (missing idempotency) was addressed, so the same fix should resolve the new occurrence if the same code path is used.",
+      "likely_root_cause": "Missing idempotency/deduplication on the shipping status webhook handler, causing multiple processing of the same webhook event.",
+      "recommended_action": "Audit the notifications-worker code for the shipping webhook handling path. Ensure a deduplication check (e.g., keyed on tracking number and status) is in place, mirroring the fix in TICKET-5139. Add unit/integration tests for idempotency and enable monitoring/alerts for duplicate notification sends.",
+      "evidence_gaps": [
+        "No logs or webhook payload evidence confirming that the carrier webhook is firing multiple times for the affected orders.",
+        "No stack trace or code path details showing whether the duplicate sends originate from the webhook handler or another part of the worker.",
+        "No information on whether any recent changes were made to the notifications-worker that could have removed or bypassed the previous deduplication logic."
+      ]
+    },
+    "checks": {
+      "expected no_match": false,
+      "no hallucinated ticket IDs": true
+    },
+    "all_passed": false
+  },
+  {
+    "label": "distractor-TICKET-5147",
+    "raw_text": "admin-dashboard: Date range filter on the sales report defaults to showing data from the wrong year when selected in early January. Conditions: only happens in the first few days of January",
+    "extraction": {
+      "component": "admin-dashboard",
+      "symptom_class": "wrong-output",
+      "symptom_summary": "Date range filter on sales report shows data from the wrong year when selected in early January",
+      "conditions": "only happens in the first few days of January",
+      "frequency_pattern": "recurs annually during the first few days of January",
+      "mechanism_hypotheses": [
+        "off\u2011by\u2011one year calculation",
+        "date parsing bug around year rollover",
+        "stale cache retaining previous year selection"
+      ],
+      "recall_query": "Date filter returns data from the previous year when used in the first days of January"
+    },
+    "verdict": {
+      "verdict": "recurrence",
+      "confidence": 0.97,
+      "matched_ticket_ids": [
+        "TICKET-5147"
+      ],
+      "mechanism_reasoning": "Both the new bug and TICKET-5147 involve the admin\u2011dashboard's default date\u2011range calculation that subtracts a fixed number of days from the current date using manual arithmetic. The logic fails to handle the year rollover in early January, causing the filter to default to the previous year. This is the same root\u2011cause mechanism (incorrect date math around year boundaries).",
+      "why_symptoms_look_different": null,
+      "past_fix_assessment": "TICKET-5147 was resolved with a real fix: the manual date math was replaced by a well\u2011tested date\u2011library function. The underlying bug was eliminated in that fix.",
+      "likely_root_cause": "Manual date subtraction for the 30\u2011day\u2011ago default does not correctly handle year rollover, leading to an off\u2011by\u2011one\u2011year result in early January.",
+      "recommended_action": "Confirm whether the code change from TICKET-5147 (use of the date\u2011library function) is present in the current deployment. If not, apply the same fix: replace the manual 30\u2011day subtraction with a library call that correctly handles year boundaries. Add unit/integration tests covering the January 1\u20115 window to prevent regression.",
+      "evidence_gaps": [
+        "No deployment version or commit hash provided to verify if the TICKET-5147 fix is included.",
+        "No stack trace or log snippet showing the exact code path executed for the date calculation."
+      ]
+    },
+    "checks": {
+      "expected no_match": false,
+      "no hallucinated ticket IDs": true
+    },
+    "all_passed": false
+  },
+  {
+    "label": "neg-1",
+    "raw_text": "Exported PDF invoices show a blank second page when printed from Safari on macOS",
+    "extraction": {
+      "component": null,
+      "symptom_class": "wrong-output",
+      "symptom_summary": "Exported PDF invoices show a blank second page when printed from Safari on macOS",
+      "conditions": "Printing the exported PDF from Safari on macOS",
+      "frequency_pattern": null,
+      "mechanism_hypotheses": [
+        "incompatible PDF rendering in Safari",
+        "incorrect page break logic during PDF generation",
+        "missing content stream causing empty page"
+      ],
+      "recall_query": "blank second page in exported PDFs when printed from Safari on macOS"
+    },
+    "verdict": {
+      "verdict": "no_match",
+      "confidence": 0.95,
+      "matched_ticket_ids": [],
+      "mechanism_reasoning": "None of the provided past tickets involve PDF generation, rendering, or page\u2011break logic. Their root causes are race conditions in UI event handling, memory\u2011buffered CSV export, stale cache TTL, and duplicate webhook handling\u2014mechanisms unrelated to the hypothesized incompatibility or missing content stream that would cause a blank second page in a PDF when printed from Safari.",
+      "why_symptoms_look_different": null,
+      "past_fix_assessment": null,
+      "likely_root_cause": "Potential incompatibility between the PDF output format and Safari's PDF renderer, or an error in the PDF generation code that inserts an empty page (e.g., incorrect page\u2011break calculation or missing content stream).",
+      "recommended_action": "1. Reproduce the issue with a sample invoice PDF and capture the raw PDF file. 2. Open the PDF in multiple viewers (Chrome, Firefox, Adobe Reader) to see if the blank page appears only in Safari. 3. Inspect the PDF structure (e.g., using pdfinfo or a PDF parser) for an empty page object or malformed content stream. 4. If the issue is Safari\u2011specific, consider adjusting the PDF generation library settings (embed fonts, use PDF/A compliance, explicit page\u2011size definitions) or add a Safari\u2011only workaround (e.g., force download and open in Preview). 5. Add automated tests that render PDFs in Safari headless mode to catch regressions.",
+      "evidence_gaps": [
+        "No sample PDF provided to examine the actual page objects.",
+        "No logs or error messages from the PDF generation service.",
+        "Unclear whether the problem occurs in other browsers or only Safari/macOS.",
+        "No information about the PDF generation library or version."
+      ]
+    },
+    "checks": {
+      "expected no_match": true,
+      "no hallucinated ticket IDs": true
+    },
+    "all_passed": true
+  },
+  {
+    "label": "neg-2",
+    "raw_text": "Two-factor SMS codes arrive ten minutes late for customers on one mobile carrier",
+    "extraction": {
+      "component": "Two-factor authentication (SMS)",
+      "symptom_class": "perf",
+      "symptom_summary": "SMS codes for two-factor authentication are delivered about ten minutes late for customers on a specific mobile carrier",
+      "conditions": "Only customers using a particular mobile carrier experience the delay",
+      "frequency_pattern": null,
+      "mechanism_hypotheses": [
+        "carrier network latency",
+        "SMS gateway throttling",
+        "message queue backlog"
+      ],
+      "recall_query": "Two-factor authentication SMS codes delayed ~10 minutes for users on a specific carrier"
+    },
+    "verdict": {
+      "verdict": "related_variant",
+      "confidence": 0.62,
+      "matched_ticket_ids": [
+        "TICKET-5152"
+      ],
+      "mechanism_reasoning": "Both incidents are driven by latency or slowdown in an external third\u2011party service (a ML feature\u2011store API in TICKET\u20115152, a mobile carrier/SMS gateway in the new bug). The root\u2011cause mechanism is an external dependency performance degradation that propagates to our system, causing delayed responses to end users.",
+      "why_symptoms_look_different": "The prior ticket manifested as slow recommendation engine responses, while the new bug shows delayed two\u2011factor SMS delivery; the affected user\u2011facing feature and the external service differ, but the underlying dependency\u2011latency mechanism is the same.",
+      "past_fix_assessment": "TICKET\u20115152 was resolved with a real fix (circuit breaker) that isolates the system from the slow third\u2011party API. The fix addresses the external\u2011latency mechanism, so a similar mitigation may be applicable here.",
+      "likely_root_cause": "Carrier\u2011specific network latency or SMS gateway throttling causing a backlog/delay in message delivery.",
+      "recommended_action": "1. Instrument SMS sending path: capture timestamps at enqueue, gateway handoff, and delivery receipt per carrier. 2. Correlate delays with carrier status pages or gateway metrics to confirm external latency. 3. If confirmed, add timeout/retry logic and a circuit\u2011breaker or fallback (e.g., voice call) for the affected carrier. 4. Engage the carrier/SMS provider to investigate and resolve throttling or routing issues. 5. Monitor for recurrence and set alerts on delivery latency thresholds.",
+      "evidence_gaps": [
+        "No logs or metrics showing queue length or gateway response times for the affected carrier.",
+        "No carrier\u2011side SLA or incident reports confirming network issues at the time of delays.",
+        "Unclear which of the hypothesized mechanisms (carrier latency, gateway throttling, internal queue backlog) is the actual cause."
+      ]
+    },
+    "checks": {
+      "expected no_match": false,
+      "no hallucinated ticket IDs": true
+    },
+    "all_passed": false
+  }
+]

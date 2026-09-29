@@ -3,3 +3,4 @@ groq
 pydantic
 streamlit
 python-dotenv
+cerebras-cloud-sdk

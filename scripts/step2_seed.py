@@ -82,7 +82,10 @@ def retain_one(client: Hindsight, supported: set[str], t: dict) -> bool:
 
 def main() -> None:
     tickets = closed_tickets(load_tickets())
-    client = Hindsight(base_url=BASE_URL)
+    client = Hindsight(
+    base_url=BASE_URL,
+    api_key=os.environ["HINDSIGHT_API_KEY"],
+)
 
     supported = set(inspect.signature(Hindsight.retain).parameters)
     print(f"Server: {BASE_URL} | bank: {BANK_ID} | blind: {BLIND}")
